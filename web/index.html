@@ -31,8 +31,35 @@
 
   <title>image_recognition</title>
   <link rel="manifest" href="manifest.json">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Flutter Web Demo">
+  
+  <style>
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+  </style>
 </head>
 <body>
+  <div id="loading" class="loading">
+    <div class="loader"></div>
+  </div>
+  
+  <script>
+    window.addEventListener('load', function() {
+      document.querySelector('#loading').remove();
+    });
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
