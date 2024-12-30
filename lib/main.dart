@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http_parser/http_parser.dart';
+import 'config.dart';
 
 void main() {
   runApp(const MyApp());
@@ -97,7 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final Uint8List imageBytes = await image.readAsBytes();
 
       // 创建 multipart 请求
-      var uri = Uri.parse('http://8.140.248.32:80/api/file/upload');
+      var uri = Uri.parse(AppConfig.uploadUrl);
       var request = http.MultipartRequest('POST', uri);
 
       // 添加文件，使用原始文件名和 MIME 类型
@@ -120,8 +121,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (responseData['data'] != null &&
             responseData['data']['file_name'] != null) {
           var fileName = responseData['data']['file_name'];
-          var downloadUrl =
-              'http://8.140.248.32:80/api/file/download/$fileName';
+          var downloadUrl = AppConfig.getDownloadUrl(fileName);
 
           // 添加上传成功的消息
           setState(() {
@@ -138,8 +138,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
           // 调用图像识别 API
           try {
-            var recognitionUrl = Uri.parse(
-                'http://8.140.248.32:80/api/image-recognition?image_url=$downloadUrl');
+            var recognitionUrl =
+                Uri.parse(AppConfig.getImageRecognitionUrl(downloadUrl));
             var recognitionResponse = await http.get(recognitionUrl);
             if (recognitionResponse.statusCode == 200) {
               var recognitionData = jsonDecode(recognitionResponse.body);
@@ -162,7 +162,7 @@ class _MyHomePageState extends State<MyHomePage> {
             _showError('图像识别出错: $e');
           }
         } else {
-          _showError('上传应格式错误');
+          _showError('上传格式错误');
         }
       } else {
         _showError('上传失败: ${response.statusCode}');
@@ -230,14 +230,46 @@ class _MyHomePageState extends State<MyHomePage> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(12.0),
-                                        child: Image.network(
-                                          message.imageUrl!,
-                                          height: 250,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
+                                      AspectRatio(
+                                        aspectRatio: 16 / 9,
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12.0),
+                                          child: Image.network(
+                                            message.imageUrl!,
+                                            fit: BoxFit.contain,
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  value: loadingProgress
+                                                              .expectedTotalBytes !=
+                                                          null
+                                                      ? loadingProgress
+                                                              .cumulativeBytesLoaded /
+                                                          loadingProgress
+                                                              .expectedTotalBytes!
+                                                      : null,
+                                                ),
+                                              );
+                                            },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Container(
+                                                color: Colors.grey[200],
+                                                child: const Center(
+                                                  child: Icon(
+                                                    Icons.error_outline,
+                                                    color: Colors.red,
+                                                    size: 32,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 12),
