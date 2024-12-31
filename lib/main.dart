@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http_parser/http_parser.dart';
 import 'config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -46,6 +47,7 @@ class ChatMessage {
   final bool isImage;
   final String? imageUrl;
   final String? recognitionResult;
+  final String timestamp;
 
   ChatMessage({
     required this.text,
@@ -53,7 +55,24 @@ class ChatMessage {
     this.isImage = false,
     this.imageUrl,
     this.recognitionResult,
-  });
+  }) : timestamp = DateTime.now().toIso8601String();
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'isMe': isMe,
+        'isImage': isImage,
+        'imageUrl': imageUrl,
+        'recognitionResult': recognitionResult,
+        'timestamp': timestamp,
+      };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+        text: json['text'],
+        isMe: json['isMe'],
+        isImage: json['isImage'],
+        imageUrl: json['imageUrl'],
+        recognitionResult: json['recognitionResult'],
+      );
 }
 
 class MyHomePage extends StatefulWidget {
@@ -78,6 +97,32 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<ChatMessage> _messages = [];
   final ImagePicker _imagePicker = ImagePicker();
   bool _isUploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessages();
+  }
+
+  // 加载保存的消息
+  Future<void> _loadMessages() async {
+    final prefs = await SharedPreferences.getInstance();
+    final messagesJson = prefs.getStringList('chat_messages') ?? [];
+    setState(() {
+      _messages.clear();
+      _messages.addAll(messagesJson
+          .map((json) => ChatMessage.fromJson(jsonDecode(json)))
+          .toList());
+    });
+  }
+
+  // 保存消息
+  Future<void> _saveMessages() async {
+    final prefs = await SharedPreferences.getInstance();
+    final messagesJson =
+        _messages.map((msg) => jsonEncode(msg.toJson())).toList();
+    await prefs.setStringList('chat_messages', messagesJson);
+  }
 
   Future<void> _pickAndUploadImage() async {
     try {
@@ -135,6 +180,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             );
           });
+          await _saveMessages(); // 保存消息
 
           // 调用图像识别 API
           try {
@@ -155,6 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   recognitionResult: recognitionResult,
                 );
               });
+              await _saveMessages(); // 保存更新后的消息
             } else {
               _showError('图像识别失败');
             }
@@ -185,6 +232,33 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<void> _showClearHistoryDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清除历史记录'),
+        content: const Text('确定要清除所有历史记录吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() {
+        _messages.clear();
+      });
+      await _saveMessages();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -194,6 +268,12 @@ class _MyHomePageState extends State<MyHomePage> {
           widget.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _showClearHistoryDialog(),
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -240,8 +320,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                             fit: BoxFit.contain,
                                             loadingBuilder: (context, child,
                                                 loadingProgress) {
-                                              if (loadingProgress == null)
+                                              if (loadingProgress == null) {
                                                 return child;
+                                              }
                                               return Center(
                                                 child:
                                                     CircularProgressIndicator(
@@ -345,7 +426,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   horizontal: 24,
                                   vertical: 12,
                                 ),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
@@ -353,7 +434,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                       color: Colors.white,
                                       size: 24,
                                     ),
-                                    const SizedBox(width: 8),
+                                    SizedBox(width: 8),
                                     Text(
                                       '选择图片',
                                       style: TextStyle(
@@ -376,15 +457,15 @@ class _MyHomePageState extends State<MyHomePage> {
             if (_isUploading)
               Container(
                 color: Colors.black.withOpacity(0.3),
-                child: Center(
+                child: const Center(
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: EdgeInsets.all(16.0),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 16),
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
                           Text(
                             '正在处理...',
                             style: TextStyle(
