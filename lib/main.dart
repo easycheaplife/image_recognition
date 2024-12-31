@@ -36,7 +36,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MyHomePage(title: '图片识别'),
+      home: const MyHomePage(title: '图像识别'),
     );
   }
 }
