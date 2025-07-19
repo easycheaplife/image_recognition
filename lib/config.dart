@@ -1,5 +1,5 @@
 class AppConfig {
-  static const String baseUrl = 'http://8.140.248.32:80';
+  static const String baseUrl = 'http://127.0.0.1:80';
 
   static const String uploadUrl = '$baseUrl/api/file/upload';
   static const String downloadUrl = '$baseUrl/api/file/download';
